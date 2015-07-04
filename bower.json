@@ -1,0 +1,30 @@
+{
+  "name": "purescript-demo-url-shortener",
+  "homepage": "https://github.com/michaelficarra/purescript-demo-url-shortener",
+  "description": "URL shortener demo app in PureScript",
+  "keywords": [
+    "purescript",
+    "demo",
+    "URL",
+    "shortener",
+    "example",
+    "sample"
+  ],
+  "license": "BSD-3-Clause",
+  "ignore": [
+    "**/.*",
+    "bower_components",
+    "node_modules",
+    "bower.json",
+    "package.json",
+    "src",
+    "docs"
+  ],
+  "dependencies": {
+    "purescript-express": "dancingrobot84/purescript-express#3fffa99b82ea76cec3d0c3460d04653affd2ee6e",
+    "purescript-strings": "0.5.x",
+    "purescript-prelude": "~0.1.0",
+    "purescript-console": "~0.1.0"
+  },
+  "devDependencies": {}
+}
