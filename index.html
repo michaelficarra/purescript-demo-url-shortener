@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Shorten Some URLs!</title>
+
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+    <!-- Optional theme -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap-theme.min.css">
+
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        margin: 0 15%;
+      }
+      p {
+        margin: 3em 0;
+      }
+      #site-name {
+        text-align: center;
+        font-size: 3em;
+      }
+      ul#shortened-url-list li,
+      form#shorten input,
+      form#shorten button {
+        font-size: 2em;
+      }
+      form#shorten {
+        display: flex;
+      }
+      #url {
+        flex: 1;
+        padding: 0.25em;
+      }
+    </style>
+  </head>
+  <body>
+    <h1 id="site-name">Shorten Some URLs!</h1>
+    <p>
+      <form id="shorten" action="/shorten">
+        <input type="url" name="url" id="url" ><button>shorten</button>
+      </form>
+    </p>
+    <p>
+      <ul id="shortened-url-list">
+      </ul>
+    </p>
+  </body>
+  <script>
+    var shortenedUrlList = document.getElementById("shortened-url-list");
+    function displayShortenedUrlList(data) {
+      for (var shortName in data) {
+        var li = document.createElement("li");
+        var firstLink = document.createElement("a");
+        firstLink.href = "//" + location.host + "/" + shortName;
+        firstLink.appendChild(document.createTextNode(shortName));
+        var secondLink = document.createElement("a");
+        secondLink.href = data[shortName];
+        secondLink.appendChild(document.createTextNode(data[shortName]));
+        li.appendChild(firstLink);
+        li.appendChild(document.createTextNode(" \u22A2 "));
+        li.appendChild(secondLink);
+        shortenedUrlList.appendChild(li);
+      }
+    }
+    var xhr = new XMLHttpRequest;
+    xhr.onload = function() {
+      displayShortenedUrlList(JSON.parse(xhr.responseText));
+    }
+    xhr.open("GET", "/list", true);
+    xhr.setRequestHeader("Accept", "application/json");
+    xhr.send();
+  </script>
+</html>

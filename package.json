@@ -1,0 +1,35 @@
+{
+  "name": "purescript-demo-url-shortener",
+  "version": "0.0.0",
+  "description": "URL shortener demo app in PureScript",
+  "main": "index.js",
+  "scripts": {
+    "test": "make test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/michaelficarra/purescript-demo-url-shortener"
+  },
+  "keywords": [
+    "purescript",
+    "demo",
+    "URL",
+    "shortener",
+    "example",
+    "sample"
+  ],
+  "author": "Michael Ficarra",
+  "license": "BSD-3-Clause",
+  "bugs": {
+    "url": "https://github.com/michaelficarra/purescript-demo-url-shortener/issues"
+  },
+  "homepage": "https://github.com/michaelficarra/purescript-demo-url-shortener",
+  "devDependencies": {
+    "bower": "1.4.1"
+  },
+  "dependencies": {
+    "express": "^4.13.0",
+    "node-redis": "^0.1.7",
+    "redis": "^0.12.1"
+  }
+}
