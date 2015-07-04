@@ -41,7 +41,7 @@
   <body>
     <h1 id="site-name">Shorten Some URLs!</h1>
     <p>
-      <form id="shorten" action="/shorten">
+      <form id="shorten" method="post" action="/_shorten">
         <input type="url" name="url" id="url" ><button>shorten</button>
       </form>
     </p>
@@ -71,7 +71,7 @@
     xhr.onload = function() {
       displayShortenedUrlList(JSON.parse(xhr.responseText));
     }
-    xhr.open("GET", "/list", true);
+    xhr.open("GET", "/_list", true);
     xhr.setRequestHeader("Accept", "application/json");
     xhr.send();
   </script>
