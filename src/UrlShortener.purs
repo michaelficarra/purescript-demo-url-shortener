@@ -30,8 +30,16 @@ intToKey i | i < 26 = fromChar $ fromCharCode (i + 97)
 intToKey i | i < 52 = fromChar $ fromCharCode (i - 26 + 65)
 intToKey i = intToKey ((i / 52) - 1) <> intToKey (i % 52)
 
-foreign import meta "var meta = require('redis').createClient(); meta.select(1);" :: Database
-foreign import database "var database = require('redis').createClient(); database.select(2);" :: Database
+foreign import selectDb """
+  function selectDb(n) {
+    var db = require('redis').createClient();
+    db.select(n);
+    return db;
+  }
+  """ :: Number -> Database
+
+meta = selectDb 1
+database = selectDb 2
 
 foreign import nextAvailableKeyP """
   function nextAvailableKeyP(db) {
@@ -80,6 +88,26 @@ foreign import lookupP """
 lookup :: forall eff. String -> Database -> (Maybe String -> DBEff eff Unit) -> DBEff eff Unit
 lookup = lookupP Nothing Just
 
+foreign import sampleLinks """
+  function sampleLinks(db){
+  return function(cb) {
+    return function() {
+      console.log('scan 0 count 5');
+      db.scan(0, 'count', 5, function(err, response) {
+        var shortNames = response[1];
+        db.mget(shortNames, function(err, urls) {
+          console.log('mget ' + shortNames.join(' '));
+          var result = Object.create(null);
+          for (var i = 0, l = shortNames.length; i < l; ++i) {
+            result[shortNames[i]] = urls[i];
+          }
+          cb(result)();
+        });
+      });
+    };
+  };}
+  """ :: forall eff r. Database -> ({| r} -> DBEff eff Unit) -> DBEff eff Unit
+
 foreign import bodyParser """
   var bodyParser = require('body-parser').urlencoded({extended: false});
   """ :: Fn3 Request Response (ExpressM Unit) (ExpressM Unit)
@@ -98,11 +126,8 @@ indexHandler = do
 
 listHandler :: Handler
 listHandler = do
-  sendJson {
-    google: "https://google.com",
-    mozilla: "http://mozilla.org",
-    fedora: "http://fedoraproject.org"
-  }
+  liftCallback (sampleLinks database) $ \linksRecord ->
+    sendJson linksRecord
 
 shortenHandler :: Handler
 shortenHandler = do
@@ -117,6 +142,7 @@ shortenHandler = do
           if success then do
             setStatus 201
             host <- getHostname
+            -- NOTE: host is provided by the client and should not be trusted
             send ("Success: " <> "http://" <> host <> ":" <> show port <> "/" <> shortName)
           else do
             setStatus 500
