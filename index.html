@@ -36,13 +36,17 @@
         flex: 1;
         padding: 0.25em;
       }
+      ul#shortened-url-list {
+        overflow-x: auto;
+        white-space: nowrap;
+      }
     </style>
   </head>
   <body>
     <h1 id="site-name">Shorten Some URLs!</h1>
     <p>
       <form id="shorten" method="post" action="/_shorten">
-        <input type="url" name="url" id="url" ><button>shorten</button>
+        <input type="url" name="url" id="url" /><button>shorten</button>
       </form>
     </p>
     <p>
@@ -52,7 +56,9 @@
   </body>
   <script>
     var shortenedUrlList = document.getElementById("shortened-url-list");
+
     function displayShortenedUrlList(data) {
+      shortenedUrlList.innerHTML = "";
       for (var shortName in data) {
         var li = document.createElement("li");
         var firstLink = document.createElement("a");
@@ -67,12 +73,39 @@
         shortenedUrlList.appendChild(li);
       }
     }
-    var xhr = new XMLHttpRequest;
-    xhr.onload = function() {
-      displayShortenedUrlList(JSON.parse(xhr.responseText));
+
+    function refreshUrlList(cb) {
+      var xhr = new XMLHttpRequest;
+      xhr.onload = function() {
+        displayShortenedUrlList(JSON.parse(xhr.responseText));
+        if (typeof cb === "function") cb();
+      }
+      xhr.open("GET", "/_list", true);
+      xhr.setRequestHeader("Accept", "application/json");
+      xhr.send();
     }
-    xhr.open("GET", "/_list", true);
-    xhr.setRequestHeader("Accept", "application/json");
-    xhr.send();
+
+    refreshUrlList();
+
+    var urlInput = document.getElementById("url");
+
+    document.getElementById("shorten").addEventListener("submit", function(event){
+      event.preventDefault();
+      event.stopPropagation();
+      var xhr = new XMLHttpRequest;
+      xhr.onload = function() {
+        var jsonResponse = JSON.parse(xhr.responseText);
+        if (jsonResponse.error) {
+          alert(jsonResponse.message);
+          return;
+        }
+        refreshUrlList();
+      }
+      xhr.open("POST", "/_shorten", true);
+      xhr.setRequestHeader("Accept", "application/json");
+      xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+      xhr.send("url=" + encodeURIComponent(urlInput.value));
+      return false;
+    });
   </script>
 </html>

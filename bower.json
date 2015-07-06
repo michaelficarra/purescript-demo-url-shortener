@@ -21,7 +21,6 @@
     "docs"
   ],
   "dependencies": {
-    "purescript-aff": "0.10.x",
     "purescript-express": "0.2.x",
     "purescript-strings": "0.4.x"
   },

@@ -6,111 +6,25 @@ import Control.Alt ((<|>))
 import Control.Monad.Eff (Eff())
 import Control.Monad.Eff.Class (liftEff)
 import Data.Maybe (maybe, Maybe(Just, Nothing))
-import Data.Char (fromCharCode)
 import Data.Function (Fn3())
-import Data.String (fromChar, toUpper)
+import Data.String (toUpper)
 import Debug.Trace (trace)
-
 import Node.Express.Types (ExpressM(), Response(), Request())
 import Node.Express.App (get, listenHttp, post, setProp, use, useExternal, App())
 import Node.Express.Handler (capture, getBodyParam, getHostname, getMethod, getOriginalUrl, getRouteParam, next, redirect, send, sendFile, sendJson, setStatus, Handler(), HandlerM())
 
-
-foreign import data Database :: *
-foreign import data DatabaseEffect :: !
-type DBEff r a = Eff (databaseEffect :: DatabaseEffect | r) a
+import UrlShortener.Redis (insert, lookup, nextAvailableKey, sampleLinks, selectDb)
 
 liftCallback :: forall a eff. ((a -> Eff eff Unit) -> Eff eff Unit) -> (a -> HandlerM Unit) -> HandlerM Unit
 liftCallback f next = do
   cb <- capture next
   liftEff (f cb)
 
-intToKey :: Number -> String
-intToKey i | i < 26 = fromChar $ fromCharCode (i + 97)
-intToKey i | i < 52 = fromChar $ fromCharCode (i - 26 + 65)
-intToKey i = intToKey ((i / 52) - 1) <> intToKey (i % 52)
-
-foreign import selectDb """
-  function selectDb(n) {
-    var db = require('redis').createClient();
-    db.select(n);
-    return db;
-  }
-  """ :: Number -> Database
-
-meta = selectDb 1
-database = selectDb 2
-
-foreign import nextAvailableKeyP """
-  function nextAvailableKeyP(db) {
-  return function(cb) {
-    return function(){
-      console.log('incr count');
-      db.incr('count', function(err, val){
-        cb(val - 1)();
-      });
-    };
-  };}
-  """ :: forall eff. Database -> (Number -> DBEff eff Unit) -> DBEff eff Unit
-
-nextAvailableKey :: forall eff. (String -> DBEff eff Unit) -> DBEff eff Unit
-nextAvailableKey cb = nextAvailableKeyP meta (cb <<< intToKey)
-
-foreign import insert """
-  function insert(key) {
-  return function(val) {
-  return function(db) {
-  return function(cb) {
-    return function(){
-      console.log('set ' + key + ' ' + val);
-      db.set(key, val, 'nx', function(err, ok){
-        cb(err == null && ok != null)();
-      });
-    }
-  };};};}
-  """ :: forall eff. String -> String -> Database -> (Boolean -> DBEff eff Unit) -> DBEff eff Unit
-
-foreign import lookupP """
-  function lookupP(Nothing) {
-  return function(Just) {
-  return function(key) {
-  return function(db) {
-  return function(cb) {
-    return function(){
-      console.log('get ' + key);
-      db.get(key, function(err, val){
-        cb(err == null && val != null ? Just(val) : Nothing)();
-      });
-    };
-  };};};};}
-  """ :: forall a eff. Maybe a -> (String -> Maybe String) -> String -> Database -> (Maybe String -> DBEff eff Unit) -> DBEff eff Unit
-
-lookup :: forall eff. String -> Database -> (Maybe String -> DBEff eff Unit) -> DBEff eff Unit
-lookup = lookupP Nothing Just
-
-foreign import sampleLinks """
-  function sampleLinks(db){
-  return function(cb) {
-    return function() {
-      console.log('scan 0 count 5');
-      db.scan(0, 'count', 5, function(err, response) {
-        var shortNames = response[1];
-        db.mget(shortNames, function(err, urls) {
-          console.log('mget ' + shortNames.join(' '));
-          var result = Object.create(null);
-          for (var i = 0, l = shortNames.length; i < l; ++i) {
-            result[shortNames[i]] = urls[i];
-          }
-          cb(result)();
-        });
-      });
-    };
-  };}
-  """ :: forall eff r. Database -> ({| r} -> DBEff eff Unit) -> DBEff eff Unit
-
 foreign import bodyParser """
   var bodyParser = require('body-parser').urlencoded({extended: false});
   """ :: Fn3 Request Response (ExpressM Unit) (ExpressM Unit)
+
+database = selectDb 2
 
 logger :: Handler
 logger = do
@@ -126,7 +40,7 @@ indexHandler = do
 
 listHandler :: Handler
 listHandler = do
-  liftCallback (sampleLinks database) $ \linksRecord ->
+  liftCallback (sampleLinks 5 database) $ \linksRecord ->
     sendJson linksRecord
 
 shortenHandler :: Handler
@@ -135,7 +49,7 @@ shortenHandler = do
   case maybeUrl of
     Nothing -> do
       setStatus 400
-      send "ERROR: no URL parameter found"
+      sendJson { error: true, message: "no URL parameter found" }
     Just url -> do
       liftCallback nextAvailableKey $ \shortName ->
         liftCallback (insert shortName url database) $ \success ->
@@ -143,10 +57,14 @@ shortenHandler = do
             setStatus 201
             host <- getHostname
             -- NOTE: host is provided by the client and should not be trusted
-            send ("Success: " <> "http://" <> host <> ":" <> show port <> "/" <> shortName)
+            sendJson {
+              message: "success",
+              shortUrl: "http://" <> host <> ":" <> show port <> "/" <> shortName,
+              url: url
+            }
           else do
             setStatus 500
-            send ("ERROR: unable to store URL for key " <> shortName)
+            sendJson { error: true, message: "unable to store URL for key " <> shortName }
 
 redirectHandler :: Handler
 redirectHandler = do
@@ -154,7 +72,8 @@ redirectHandler = do
   case maybeShortName of
     Nothing -> do
       setStatus 404
-      send "ERROR: shortName parameter not found"
+      liftEff $ trace "ERROR: shortName parameter not found"
+      next
     Just shortName ->
       liftCallback (lookup shortName database) $ \maybeUrl -> do
         maybe (setStatus 404) redirect maybeUrl
