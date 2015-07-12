@@ -7,9 +7,7 @@ build: dist/$(MODULE).js
 deps: bower_components
 doc: docs/README.md
 
-BOWER_SRC = $(shell find bower_components/purescript-*/src -name '*.purs' -type f | sort)
 SRC = $(shell find src -name '*.purs' -type f | sort)
-BOWER_FFI = $(shell find bower_components/purescript-*/src -name '*.js' -type f | sort)
 FFI = $(shell find src -name '*.js' -type f | sort)
 
 NPM = $(shell command -v npm || { echo "npm not found."; exit 1; })
@@ -24,25 +22,28 @@ $(BOWER):
 	npm install bower
 
 dist/$(MODULE).js: bower_components $(SRC) $(FFI)
-	@mkdir -p '$(@D)'
+	mkdir -p "$(@D)"
 	$(PSC) \
-	  $(BOWER_SRC) $(SRC) \
-		$(BOWER_FFI:%=--ffi %) $(FFI:%=--ffi %) \
+		'bower_components/purescript-*/src/**/*.purs' \
+		--ffi 'bower_components/purescript-*/src/**/*.js' \
+	       	$(SRC) \
+		$(FFI:%=--ffi %) \
 		--verbose-errors \
 		--comments
 	$(PSCBUNDLE) \
-		$(shell find output -name '*.js' -type f | sort) \
-	  --output dist/$(MODULE).js \
-	  --module $(MODULE) \
-	  --main $(MODULE)
+		'output/**/*.js' \
+		--output dist/$(MODULE).js \
+		--module $(MODULE) \
+		--main $(MODULE)
 
 .PHONY: default all build deps doc clean
 
 docs/README.md: bower_components $(SRC)
-	@mkdir -p '$(@D)'
+	mkdir -p '$(@D)'
 	$(PSCDOCS) \
 		--docgen $(MODULE) \
-		$(BOWER_SRC) $(SRC) >'$@'
+		'bower_components/purescript-*/src/**/*.purs'
+		$(SRC) >'$@'
 
 node_modules:
 	$(NPM) install
@@ -53,4 +54,4 @@ bower_components: $(BOWER)
 	touch -cm bower_components
 
 clean:
-	rm -rf dist coverage bower_components node_modules .psci_modules
+	rm -rf dist bower_components node_modules .psci_modules output
