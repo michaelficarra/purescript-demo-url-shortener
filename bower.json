@@ -21,8 +21,10 @@
     "docs"
   ],
   "dependencies": {
-    "purescript-express": "0.2.x",
-    "purescript-strings": "0.4.x"
+    "purescript-express": "stkb/purescript-express#ps0.7",
+    "purescript-strings": "0.5.x",
+    "purescript-prelude": "~0.1.0",
+    "purescript-console": "~0.1.0"
   },
   "devDependencies": {}
 }

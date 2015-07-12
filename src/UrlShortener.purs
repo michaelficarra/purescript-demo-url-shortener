@@ -1,29 +1,19 @@
 module UrlShortener where
 
-import Prelude ((<<<), (<>), (<$>), ($), (<), (%), (/), (+), (-), show, Unit(), Ord)
-
-import Control.Alt ((<|>))
-import Control.Monad.Eff (Eff())
 import Control.Monad.Eff.Class (liftEff)
-import Data.Maybe (maybe, Maybe(Just, Nothing))
-import Data.Function (Fn3())
+import Data.Maybe (maybe, Maybe(Nothing, Just))
+import qualified Control.Monad.Eff.Console as Console
 import Data.String (toUpper)
-import Debug.Trace (trace)
-import Node.Express.Types (ExpressM(), Response(), Request())
 import Node.Express.App (get, listenHttp, post, setProp, use, useExternal, App())
-import Node.Express.Handler (capture, getBodyParam, getHostname, getMethod, getOriginalUrl, getRouteParam, next, redirect, send, sendFile, sendJson, setStatus, Handler(), HandlerM())
+import Node.Express.Handler (getBodyParam, getHostname, getMethod, getOriginalUrl, getRouteParam, next, redirect, sendFile, sendJson, setStatus, Handler())
+import Prelude ((<<<), (<>), ($), bind, show)
 
-import UrlShortener.Redis (insert, lookup, nextAvailableKey, sampleLinks, selectDb)
+import UrlShortener.Express (bodyParser, liftCallback)
+import UrlShortener.Redis (insert, lookup, nextAvailableKey, sampleLinks, selectDb, Database())
 
-liftCallback :: forall a eff. ((a -> Eff eff Unit) -> Eff eff Unit) -> (a -> HandlerM Unit) -> HandlerM Unit
-liftCallback f next = do
-  cb <- capture next
-  liftEff (f cb)
+foreign import port :: Int
 
-foreign import bodyParser """
-  var bodyParser = require('body-parser').urlencoded({extended: false});
-  """ :: Fn3 Request Response (ExpressM Unit) (ExpressM Unit)
-
+database :: Database
 database = selectDb 2
 
 logger :: Handler
@@ -31,7 +21,7 @@ logger = do
   url <- getOriginalUrl
   maybeMethod <- getMethod
   let method = maybe "" ((<> " ") <<< toUpper <<< show) maybeMethod
-  liftEff $ trace (">>> " <> method <> url)
+  liftEff $ Console.log (">>> " <> method <> url)
   next
 
 indexHandler :: Handler
@@ -40,8 +30,7 @@ indexHandler = do
 
 listHandler :: Handler
 listHandler = do
-  liftCallback (sampleLinks 5 database) $ \linksRecord ->
-    sendJson linksRecord
+  liftCallback (sampleLinks 5 database) sendJson
 
 shortenHandler :: Handler
 shortenHandler = do
@@ -56,7 +45,6 @@ shortenHandler = do
           if success then do
             setStatus 201
             host <- getHostname
-            -- NOTE: host is provided by the client and should not be trusted
             sendJson {
               message: "success",
               shortUrl: "http://" <> host <> ":" <> show port <> "/" <> shortName,
@@ -72,7 +60,7 @@ redirectHandler = do
   case maybeShortName of
     Nothing -> do
       setStatus 404
-      liftEff $ trace "ERROR: shortName parameter not found"
+      liftEff $ Console.error "ERROR: shortName parameter not found"
       next
     Just shortName ->
       liftCallback (lookup shortName database) $ \maybeUrl -> do
@@ -81,8 +69,8 @@ redirectHandler = do
 
 app :: App
 app = do
-  liftEff $ trace "Starting server"
-  setProp "json spaces" 2
+  liftEff $ Console.log "Starting server"
+  setProp "json spaces" 2.0
   use logger
   useExternal bodyParser
   get "/" indexHandler
@@ -90,9 +78,7 @@ app = do
   post "/_shorten" shortenHandler
   get "/:shortName" redirectHandler
 
-foreign import port "var port = process.env.PORT || 8080" :: Number
-
 main = do
-  trace "Setting up"
+  Console.log "Setting up"
   listenHttp app port \_ ->
-    trace ("Listening on " <> show port)
+    Console.log ("Listening on " <> show port)

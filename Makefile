@@ -1,19 +1,21 @@
 default: build
-all: build externs doc
+all: build doc
 
 MODULE = UrlShortener
 
-build: lib/$(MODULE).js
-externs: lib/$(MODULE).externs.purs
+build: dist/$(MODULE).js
 deps: bower_components
 doc: docs/README.md
 
-BOWER_DEPS = $(shell find bower_components/purescript-*/src -name '*.purs' -type f | sort)
+BOWER_SRC = $(shell find bower_components/purescript-*/src -name '*.purs' -type f | sort)
 SRC = $(shell find src -name '*.purs' -type f | sort)
+BOWER_FFI = $(shell find bower_components/purescript-*/src -name '*.js' -type f | sort)
+FFI = $(shell find src -name '*.js' -type f | sort)
 
 NPM = $(shell command -v npm || { echo "npm not found."; exit 1; })
 PSC = $(shell command -v psc || { echo "PureScript compiler (psc) not found."; exit 1; })
-PSCDOCS = $(shell command -v psc-docs || command -v docgen)
+PSCDOCS = $(shell command -v psc-docs)
+PSCBUNDLE = $(shell command -v psc-bundle)
 
 NPM_BIN = $(shell npm bin)
 BOWER = $(NPM_BIN)/bower
@@ -21,28 +23,26 @@ BOWER = $(NPM_BIN)/bower
 $(BOWER):
 	npm install bower
 
-lib/$(MODULE).js: bower_components $(SRC)
+dist/$(MODULE).js: bower_components $(SRC) $(FFI)
 	@mkdir -p '$(@D)'
-	$(PSC) --verbose-errors \
+	$(PSC) \
+	  $(BOWER_SRC) $(SRC) \
+		$(BOWER_FFI:%=--ffi %) $(FFI:%=--ffi %) \
+		--verbose-errors \
+		--comments
+	$(PSCBUNDLE) \
+		$(shell find output -name '*.js' -type f | sort) \
+	  --output dist/$(MODULE).js \
 	  --module $(MODULE) \
-	  --main=$(MODULE) \
-	  $(BOWER_DEPS) $(SRC) \
-	  --output lib/$(MODULE).js
+	  --main $(MODULE)
 
-.PHONY: default all build externs deps doc clean
+.PHONY: default all build deps doc clean
 
-lib/$(MODULE).externs.purs: bower_components $(SRC)
+docs/README.md: bower_components $(SRC)
 	@mkdir -p '$(@D)'
-	$(PSC) --verbose-errors \
-	  --module $(MODULE) \
-	  --codegen $(MODULE) \
-	  --externs lib/$(MODULE).externs.purs \
-	  $(BOWER_DEPS) $(SRC) \
-	  > /dev/null
-
-docs/README.md: lib/$(MODULE).externs.purs
-	@mkdir -p '$(@D)'
-	$(PSCDOCS) lib/$(MODULE).externs.purs >'$@'
+	$(PSCDOCS) \
+		--docgen $(MODULE) \
+		$(BOWER_SRC) $(SRC) >'$@'
 
 node_modules:
 	$(NPM) install
@@ -53,4 +53,4 @@ bower_components: $(BOWER)
 	touch -cm bower_components
 
 clean:
-	rm -rf lib coverage bower_components node_modules .psci_modules
+	rm -rf dist coverage bower_components node_modules .psci_modules
