@@ -26,7 +26,7 @@ dist/$(MODULE).js: bower_components $(SRC) $(FFI)
 	$(PSC) \
 		'bower_components/purescript-*/src/**/*.purs' \
 		--ffi 'bower_components/purescript-*/src/**/*.js' \
-	       	$(SRC) \
+		$(SRC) \
 		$(FFI:%=--ffi %) \
 		--verbose-errors \
 		--comments
