@@ -34,12 +34,26 @@ listHandler :: Handler
 listHandler = do
   liftCallback (sampleLinks 5 database) sendJson
 
+redirectHandler :: Handler
+redirectHandler = do
+  maybeShortName <- getRouteParam "shortName"
+  case maybeShortName of
+    Nothing -> do
+      setStatus 404
+      liftEff $ Console.error "ERROR: shortName parameter not found"
+      next
+    Just shortName ->
+      liftCallback (lookup shortName database) $ \maybeUrl -> do
+        maybe (setStatus 404) redirect maybeUrl
+        next
+
 app :: App
 app = do
   liftEff $ Console.log "Initialising server"
   use logger
   get "/" indexHandler
   get "/_list" listHandler
+  get "/:shortName" redirectHandler
 
 main = do
   Console.log "Starting server"
