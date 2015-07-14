@@ -30,11 +30,16 @@ indexHandler :: Handler
 indexHandler = do
   sendFile "./index.html"
 
+listHandler :: Handler
+listHandler = do
+  liftCallback (sampleLinks 5 database) sendJson
+
 app :: App
 app = do
   liftEff $ Console.log "Initialising server"
   use logger
   get "/" indexHandler
+  get "/_list" listHandler
 
 main = do
   Console.log "Starting server"
