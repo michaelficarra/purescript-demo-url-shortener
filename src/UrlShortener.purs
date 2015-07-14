@@ -17,9 +17,14 @@ foreign import linkColour :: String -> String
 database :: Database
 database = selectDb 2
 
+indexHandler :: Handler
+indexHandler = do
+  sendFile "./index.html"
+
 app :: App
 app = do
   liftEff $ Console.log "Initialising server"
+  get "/" indexHandler
 
 main = do
   Console.log "Starting server"
