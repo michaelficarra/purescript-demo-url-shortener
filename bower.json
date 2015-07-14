@@ -21,7 +21,7 @@
     "docs"
   ],
   "dependencies": {
-    "purescript-express": "stkb/purescript-express#ps0.7",
+    "purescript-express": "dancingrobot84/purescript-express#3fffa99b82ea76cec3d0c3460d04653affd2ee6e",
     "purescript-strings": "0.5.x",
     "purescript-prelude": "~0.1.0",
     "purescript-console": "~0.1.0"
