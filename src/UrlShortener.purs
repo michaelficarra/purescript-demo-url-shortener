@@ -13,9 +13,18 @@ import UrlShortener.Redis (insert, lookup, nextAvailableKey, sampleLinks, select
 
 foreign import port :: Int
 foreign import linkColour :: String -> String
+foreign import httpMethodColour :: String -> String
 
 database :: Database
 database = selectDb 2
+
+logger :: Handler
+logger = do
+  url <- getOriginalUrl
+  maybeMethod <- getMethod
+  let method = maybe "" ((<> " ") <<< httpMethodColour <<< toUpper <<< show) maybeMethod
+  liftEff $ Console.log (">>> " <> method <> url)
+  next
 
 indexHandler :: Handler
 indexHandler = do
@@ -24,6 +33,7 @@ indexHandler = do
 app :: App
 app = do
   liftEff $ Console.log "Initialising server"
+  use logger
   get "/" indexHandler
 
 main = do
